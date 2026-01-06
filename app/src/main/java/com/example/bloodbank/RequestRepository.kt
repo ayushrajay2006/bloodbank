@@ -17,6 +17,10 @@ class RequestRepository(context: Context) {
         return dao.getAllRequests()
     }
 
+    suspend fun resolveRequest(id: Int) {
+        dao.updateStatus(id, RequestStatus.RESOLVED)
+    }
+
     suspend fun clearAll() {
         dao.clearAll()
     }

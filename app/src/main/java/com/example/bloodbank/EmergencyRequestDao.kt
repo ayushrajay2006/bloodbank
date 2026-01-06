@@ -15,6 +15,9 @@ interface EmergencyRequestDao {
     @Query("SELECT * FROM emergency_requests ORDER BY timestamp DESC")
     fun getAllRequests(): Flow<List<EmergencyRequest>>
 
+    @Query("UPDATE emergency_requests SET status = :status WHERE id = :id")
+    suspend fun updateStatus(id: Int, status: RequestStatus)
+
     @Query("DELETE FROM emergency_requests")
     suspend fun clearAll()
 }

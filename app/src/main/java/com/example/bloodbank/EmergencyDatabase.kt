@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [EmergencyRequest::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class EmergencyDatabase : RoomDatabase() {
@@ -24,7 +24,9 @@ abstract class EmergencyDatabase : RoomDatabase() {
                     context.applicationContext,
                     EmergencyDatabase::class.java,
                     "emergency_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

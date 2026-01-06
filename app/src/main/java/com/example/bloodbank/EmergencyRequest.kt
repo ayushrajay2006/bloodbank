@@ -10,5 +10,11 @@ data class EmergencyRequest(
     val bloodGroup: String,
     val location: String,
     val instructions: String,
+    val status: RequestStatus = RequestStatus.ACTIVE,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+enum class RequestStatus {
+    ACTIVE,
+    RESOLVED
+}
