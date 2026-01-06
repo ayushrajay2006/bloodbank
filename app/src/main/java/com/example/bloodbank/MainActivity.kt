@@ -3,9 +3,9 @@ package com.example.bloodbank
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.*
+import com.example.bloodbank.ui.CreateRequestScreen
+import com.example.bloodbank.ui.MainScreen
 import com.example.bloodbank.ui.theme.EmergencyRelayTheme
 
 class MainActivity : ComponentActivity() {
@@ -14,11 +14,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             EmergencyRelayTheme {
-                Surface(
-                    modifier = Modifier,
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    MainScreen()
+
+                var showCreateScreen by remember { mutableStateOf(false) }
+
+                if (showCreateScreen) {
+                    CreateRequestScreen(
+                        onBack = { showCreateScreen = false }
+                    )
+                } else {
+                    MainScreen(
+                        onCreateRequest = { showCreateScreen = true }
+                    )
                 }
             }
         }

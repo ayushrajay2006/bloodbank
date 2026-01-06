@@ -1,12 +1,23 @@
 package com.example.bloodbank
 
-object RequestRepository {
+import android.content.Context
+import kotlinx.coroutines.flow.Flow
 
-    private val requests = mutableListOf<EmergencyRequest>()
+class RequestRepository(context: Context) {
 
-    fun add(request: EmergencyRequest) {
-        requests.add(request)
+    private val dao = EmergencyDatabase
+        .getDatabase(context)
+        .emergencyRequestDao()
+
+    suspend fun addRequest(request: EmergencyRequest) {
+        dao.insert(request)
     }
 
-    fun getAll(): List<EmergencyRequest> = requests
+    fun getAllRequests(): Flow<List<EmergencyRequest>> {
+        return dao.getAllRequests()
+    }
+
+    suspend fun clearAll() {
+        dao.clearAll()
+    }
 }

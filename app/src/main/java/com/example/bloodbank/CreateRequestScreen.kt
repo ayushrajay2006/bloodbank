@@ -1,27 +1,25 @@
 package com.example.bloodbank.ui
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.content.Context
-import android.content.pm.PackageManager
-import android.location.Location
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.app.ActivityCompat
 import com.example.bloodbank.EmergencyRequest
 import com.example.bloodbank.RequestRepository
 import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateRequestScreen(onBack: () -> Unit) {
 
     val context = LocalContext.current
+    val repository = remember { RequestRepository(context) }
+    val scope = rememberCoroutineScope()
     val fusedLocationClient = remember {
         LocationServices.getFusedLocationProviderClient(context)
     }
@@ -30,7 +28,6 @@ fun CreateRequestScreen(onBack: () -> Unit) {
 
     var selectedBloodGroup by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
-
     var locationText by remember { mutableStateOf("") }
     var instructions by remember { mutableStateOf("") }
 
@@ -40,10 +37,9 @@ fun CreateRequestScreen(onBack: () -> Unit) {
             .padding(16.dp)
     ) {
 
-        Text("Create Emergency Request", fontSize = 20.sp)
+        Text("Create Emergency Request", style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Blood group dropdown
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = !expanded }
@@ -53,17 +49,19 @@ fun CreateRequestScreen(onBack: () -> Unit) {
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Blood Group") },
-                modifier = Modifier.menuAnchor().fillMaxWidth()
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
             )
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                bloodGroups.forEach { group ->
+                bloodGroups.forEach {
                     DropdownMenuItem(
-                        text = { Text(group) },
+                        text = { Text(it) },
                         onClick = {
-                            selectedBloodGroup = group
+                            selectedBloodGroup = it
                             expanded = false
                         }
                     )
@@ -73,7 +71,6 @@ fun CreateRequestScreen(onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Location field
         OutlinedTextField(
             value = locationText,
             onValueChange = { locationText = it },
@@ -83,26 +80,22 @@ fun CreateRequestScreen(onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Use current location button
-        Button(
-            onClick = {
-                fetchLocation(context, fusedLocationClient) { location ->
-                    locationText = location
-                }
+        Button(onClick = {
+            fetchLocation(context, fusedLocationClient) {
+                locationText = it
             }
-        ) {
+        }) {
             Text("Use current location")
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Extra instructions
         OutlinedTextField(
             value = instructions,
             onValueChange = { instructions = it },
-            label = { Text("Extra Instructions (optional)") },
+            label = { Text("Extra instructions") },
             modifier = Modifier.fillMaxWidth(),
-            maxLines = 4
+            maxLines = 3
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -111,12 +104,15 @@ fun CreateRequestScreen(onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             onClick = {
                 if (selectedBloodGroup.isNotBlank() && locationText.isNotBlank()) {
-                    val request = EmergencyRequest(
-                        bloodGroup = selectedBloodGroup,
-                        location = locationText,
-                        instructions = instructions
-                    )
-                    RequestRepository.add(request)
+                    scope.launch(Dispatchers.IO) {
+                        repository.addRequest(
+                            EmergencyRequest(
+                                bloodGroup = selectedBloodGroup,
+                                location = locationText,
+                                instructions = instructions
+                            )
+                        )
+                    }
                     onBack()
                 }
             }
