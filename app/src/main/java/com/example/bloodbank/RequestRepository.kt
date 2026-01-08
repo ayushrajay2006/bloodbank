@@ -24,4 +24,8 @@ class RequestRepository(context: Context) {
     suspend fun clearAll() {
         dao.clearAll()
     }
+    suspend fun getAllRequestsOnce(): List<EmergencyRequest> {
+        return dao.getAllRequestsOnce()
+    }
+
 }

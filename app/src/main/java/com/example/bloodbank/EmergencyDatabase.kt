@@ -6,13 +6,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [EmergencyRequest::class],
-    version = 2,
+    entities = [EmergencyRequest::class, BloodBank::class],
+    version = 4,
     exportSchema = false
 )
+
 abstract class EmergencyDatabase : RoomDatabase() {
 
     abstract fun emergencyRequestDao(): EmergencyRequestDao
+    abstract fun bloodBankDao(): BloodBankDao
 
     companion object {
         @Volatile

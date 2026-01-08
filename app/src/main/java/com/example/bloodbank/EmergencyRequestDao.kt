@@ -20,4 +20,8 @@ interface EmergencyRequestDao {
 
     @Query("DELETE FROM emergency_requests")
     suspend fun clearAll()
+
+    @Query("SELECT * FROM emergency_requests")
+    suspend fun getAllRequestsOnce(): List<EmergencyRequest>
+
 }
