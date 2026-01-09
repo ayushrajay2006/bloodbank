@@ -4,12 +4,14 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.location.Geocoder
+import android.location.Location
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,11 +21,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.bloodbank.EmergencyRequest
 import com.example.bloodbank.RequestRepository
+import com.example.bloodbank.RequestStatus
 import com.example.bloodbank.ui.theme.MedicalRed
 import com.example.bloodbank.ui.theme.OffWhite
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -47,6 +51,7 @@ fun CreateRequestScreen(onBack: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var locationText by remember { mutableStateOf("") }
     var instructions by remember { mutableStateOf("") }
+    var contactNumber by remember { mutableStateOf("") }
     var isLocating by remember { mutableStateOf(false) }
 
     fun getAddressFromLocation(lat: Double, lon: Double) {
@@ -57,9 +62,12 @@ fun CreateRequestScreen(onBack: () -> Unit) {
                 val addresses = geocoder.getFromLocation(lat, lon, 1)
                 if (!addresses.isNullOrEmpty()) {
                     val address = addresses[0]
-                    val fullAddress = listOfNotNull(address.thoroughfare, address.subLocality, address.locality).joinToString(", ")
+
+                    // 👇 FIXED: This gets the FULL exact address (Street, House No, etc.)
+                    val fullAddress = address.getAddressLine(0) ?: "Lat: $lat, Lon: $lon"
+
                     withContext(Dispatchers.Main) {
-                        locationText = if (fullAddress.isNotBlank()) fullAddress else "Lat: $lat, Lon: $lon"
+                        locationText = fullAddress
                         isLocating = false
                     }
                 } else {
@@ -164,6 +172,21 @@ fun CreateRequestScreen(onBack: () -> Unit) {
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+            Text("Contact Info", style = MaterialTheme.typography.labelLarge, color = MedicalRed)
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = contactNumber,
+                onValueChange = { contactNumber = it },
+                label = { Text("Your Phone Number") },
+                placeholder = { Text("e.g. +91 98765 43210") },
+                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = MedicalRed) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MedicalRed)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
             Text("Additional Info", style = MaterialTheme.typography.labelLarge, color = MedicalRed)
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -181,13 +204,15 @@ fun CreateRequestScreen(onBack: () -> Unit) {
 
             Button(
                 onClick = {
-                    if (selectedBloodGroup.isNotBlank() && locationText.isNotBlank()) {
+                    if (selectedBloodGroup.isNotBlank() && locationText.isNotBlank() && contactNumber.isNotBlank()) {
                         scope.launch(Dispatchers.IO) {
                             repository.addRequest(
                                 EmergencyRequest(
                                     bloodGroup = selectedBloodGroup,
                                     location = locationText,
                                     instructions = instructions,
+                                    contactNumber = contactNumber,
+                                    status = RequestStatus.ACTIVE,
                                     timestamp = System.currentTimeMillis()
                                 )
                             )
@@ -206,15 +231,22 @@ fun CreateRequestScreen(onBack: () -> Unit) {
 }
 
 @SuppressLint("MissingPermission")
-private fun fetchLocation(client: FusedLocationProviderClient, onResult: (android.location.Location?) -> Unit) {
+private fun fetchLocation(client: FusedLocationProviderClient, onResult: (Location?) -> Unit) {
     try {
-        client.lastLocation.addOnSuccessListener { location ->
-            if (location != null) onResult(location)
-            else {
+        client.lastLocation.addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                onResult(location)
+            } else {
                 val request = com.google.android.gms.location.CurrentLocationRequest.Builder()
                     .setPriority(Priority.PRIORITY_HIGH_ACCURACY).build()
-                client.getCurrentLocation(request, null).addOnSuccessListener { onResult(it) }.addOnFailureListener { onResult(null) }
+                client.getCurrentLocation(request, null)
+                    .addOnSuccessListener { loc: Location? -> onResult(loc) }
+                    .addOnFailureListener { onResult(null) }
             }
-        }.addOnFailureListener { onResult(null) }
-    } catch (e: SecurityException) { onResult(null) }
+        }.addOnFailureListener {
+            onResult(null)
+        }
+    } catch (e: SecurityException) {
+        onResult(null)
+    }
 }

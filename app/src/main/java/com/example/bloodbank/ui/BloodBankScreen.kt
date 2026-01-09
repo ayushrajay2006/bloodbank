@@ -11,26 +11,27 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.bloodbank.BloodBank
-import com.example.bloodbank.CoreDatabase // 👈 Fixed Import
-import com.example.bloodbank.EmergencyRequest
-import com.example.bloodbank.map.BloodBankMapScreen // Ensure map package is correct
+import com.example.bloodbank.CoreDatabase
+import com.example.bloodbank.map.BloodBankMapScreen
+import com.example.bloodbank.ui.theme.OffWhite
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BloodBankScreen(
-    emergencyRequest: EmergencyRequest? = null
-) {
+fun BloodBankScreen(onBack: () -> Unit) { // Added onBack parameter
     val context = LocalContext.current
-    // 👇 Use CoreDatabase
     val database = CoreDatabase.getDatabase(context)
 
     // 1. Get ALL banks first
@@ -109,26 +110,41 @@ fun BloodBankScreen(
             onBack = { showMap = false }
         )
     } else {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Text("Nearby Blood Banks (< 50km)", style = MaterialTheme.typography.headlineMedium)
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Nearby Centers", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = OffWhite)
+                )
+            },
+            containerColor = OffWhite
+        ) { padding ->
+            Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
 
-            if (userLocation == null) {
-                Text("Locating you...", color = MaterialTheme.colorScheme.primary)
-            } else {
-                Text("Found ${filteredBanks.size} centers near you", color = MaterialTheme.colorScheme.secondary)
-            }
+                if (userLocation == null) {
+                    Text("Locating you...", color = MaterialTheme.colorScheme.primary)
+                } else {
+                    Text("Found ${filteredBanks.size} centers near you", color = MaterialTheme.colorScheme.secondary)
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Button(onClick = { showMap = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("View Nearby on Map")
-            }
+                // Map Button
+                Button(onClick = { showMap = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("View Nearby on Map")
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(filteredBanks) { bank ->
-                    BloodBankItem(bank, userLocation)
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(filteredBanks) { bank ->
+                        BloodBankItem(bank, userLocation)
+                    }
                 }
             }
         }

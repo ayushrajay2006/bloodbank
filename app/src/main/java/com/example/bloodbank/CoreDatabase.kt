@@ -15,12 +15,12 @@ import androidx.room.TypeConverters
 import kotlinx.coroutines.flow.Flow
 
 // --- 1. ENUMS ---
-
 enum class RequestStatus {
     PENDING,
     ACCEPTED,
-    COMPLETED,
-    ACTIVE // 👈 ADDED THIS TO FIX BLUETOOTH ERROR
+    COMPLETED, // This equals "Resolved"
+    ACTIVE,
+    CRITICAL   // 👈 ADDED NEW STATUS
 }
 
 class Converters {
@@ -31,19 +31,18 @@ class Converters {
 }
 
 // --- 2. ENTITIES ---
-
 @Entity(tableName = "emergency_requests")
 data class EmergencyRequest(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val bloodGroup: String,
     val location: String,
     val instructions: String,
+    val contactNumber: String,
     val status: RequestStatus = RequestStatus.PENDING,
     val timestamp: Long = System.currentTimeMillis()
 )
 
 // --- 3. DAOs ---
-
 @Dao
 interface EmergencyRequestDao {
     @Insert
@@ -54,6 +53,10 @@ interface EmergencyRequestDao {
 
     @Query("SELECT * FROM emergency_requests WHERE id = :id LIMIT 1")
     suspend fun getRequestById(id: Int): EmergencyRequest?
+
+    // 👇 NEW FUNCTION TO UPDATE STATUS
+    @Query("UPDATE emergency_requests SET status = :status WHERE id = :id")
+    suspend fun updateStatus(id: Int, status: RequestStatus)
 }
 
 @Dao
@@ -69,10 +72,9 @@ interface BloodBankDao {
 }
 
 // --- 4. MAIN DATABASE ---
-
 @Database(
     entities = [EmergencyRequest::class, BloodBank::class],
-    version = 3, // Bumped Version
+    version = 5, // 👈 BUMPED VERSION TO 5
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -90,7 +92,7 @@ abstract class CoreDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     CoreDatabase::class.java,
-                    "blood_relay_core_db_v3"
+                    "blood_relay_core_db_v5" // 👈 Renamed file to be safe
                 )
                     .fallbackToDestructiveMigration()
                     .build()
