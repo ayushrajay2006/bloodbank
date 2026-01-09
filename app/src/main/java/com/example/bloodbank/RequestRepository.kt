@@ -5,27 +5,15 @@ import kotlinx.coroutines.flow.Flow
 
 class RequestRepository(context: Context) {
 
-    private val dao = EmergencyDatabase
-        .getDatabase(context)
-        .emergencyRequestDao()
+    // 👇 UPDATED TO USE CoreDatabase
+    private val database = CoreDatabase.getDatabase(context)
+    private val requestDao = database.emergencyRequestDao()
 
     suspend fun addRequest(request: EmergencyRequest) {
-        dao.insert(request)
+        requestDao.insert(request)
     }
 
     fun getAllRequests(): Flow<List<EmergencyRequest>> {
-        return dao.getAllRequests()
+        return requestDao.getAllRequests()
     }
-
-    suspend fun resolveRequest(id: Int) {
-        dao.updateStatus(id, RequestStatus.RESOLVED)
-    }
-
-    suspend fun clearAll() {
-        dao.clearAll()
-    }
-    suspend fun getAllRequestsOnce(): List<EmergencyRequest> {
-        return dao.getAllRequestsOnce()
-    }
-
 }

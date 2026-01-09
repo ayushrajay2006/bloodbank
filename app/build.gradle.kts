@@ -51,12 +51,16 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 
     // ---- Lifecycle & ViewModel ----
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
 
     // ---- Location ----
     implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
+
+
 
     // ---- Room (KSP, NOT KAPT) ----
     implementation("androidx.room:room-runtime:2.6.1")
