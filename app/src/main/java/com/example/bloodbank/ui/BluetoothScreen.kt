@@ -1,25 +1,24 @@
 package com.example.bloodbank.ui
 
-import android.bluetooth.BluetoothAdapter
-import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.BluetoothSearching
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.BluetoothConnected
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.bloodbank.CoreDatabase
-import com.example.bloodbank.bluetooth.BluetoothClient
-import com.example.bloodbank.bluetooth.BluetoothServer
+import androidx.compose.ui.unit.sp
+import com.example.bloodbank.bluetooth.BluetoothRelayManager // 👈 Import the Manager
 import com.example.bloodbank.ui.theme.MedicalRed
 import com.example.bloodbank.ui.theme.OffWhite
 
@@ -27,22 +26,15 @@ import com.example.bloodbank.ui.theme.OffWhite
 @Composable
 fun BluetoothScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val db = CoreDatabase.getDatabase(context)
-    val adapter = BluetoothAdapter.getDefaultAdapter()
 
-    val server = remember { BluetoothServer(adapter, db) }
-    val client = remember { BluetoothClient(adapter) }
-
-    val myRequests by db.emergencyRequestDao().getAllRequests().collectAsState(initial = emptyList())
-
-    // This text will now show EXACTLY what is happening
-    var statusText by remember { mutableStateOf("Ready to Connect") }
-    var isServerRunning by remember { mutableStateOf(false) }
+    // Read directly from the Singleton Manager
+    val isRelayActive = BluetoothRelayManager.isRelayActive
+    val statusLog = BluetoothRelayManager.statusLog
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Offline Relay (Real)", fontWeight = FontWeight.Bold) },
+                title = { Text("Automatic Relay", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -57,77 +49,86 @@ fun BluetoothScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                Icons.Default.Bluetooth,
-                contentDescription = null,
-                tint = MedicalRed,
-                modifier = Modifier.size(80.dp)
+
+            // PULSING ICON
+            Box(contentAlignment = Alignment.Center) {
+                if(isRelayActive) {
+                    Box(modifier = Modifier.size(120.dp).clip(CircleShape).background(MedicalRed.copy(alpha = 0.2f)))
+                }
+                Icon(
+                    imageVector = Icons.Default.BluetoothConnected,
+                    contentDescription = null,
+                    tint = if(isRelayActive) MedicalRed else Color.Gray,
+                    modifier = Modifier.size(80.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                if (isRelayActive) "Relay Active" else "Relay Offline",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isRelayActive) MedicalRed else Color.Black
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Real Device Connection", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-
-            // 👇 BIG STATUS TEXT UPDATE
             Text(
-                text = statusText,
-                color = if (statusText.contains("Failed")) Color.Red else Color.Gray,
-                style = MaterialTheme.typography.bodyLarge,
+                statusLog,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.height(40.dp)
             )
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // RECEIVER BUTTON
+            // TOGGLE BUTTON
             Button(
                 onClick = {
-                    if (!isServerRunning) {
-                        isServerRunning = true
-                        // Pass the function to update text
-                        server.start { newStatus ->
-                            statusText = newStatus
-                        }
+                    if (isRelayActive) {
+                        BluetoothRelayManager.stop()
+                    } else {
+                        BluetoothRelayManager.start(context)
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (isServerRunning) Color(0xFF2E7D32) else MedicalRed)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isRelayActive) Color.Gray else MedicalRed
+                ),
+                shape = MaterialTheme.shapes.extraLarge
             ) {
-                if (isServerRunning) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Server Active")
-                } else {
-                    Icon(Icons.Default.BluetoothSearching, null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Receive Data (Start Server)")
-                }
+                Icon(Icons.Default.PowerSettingsNew, null)
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = if (isRelayActive) "STOP RELAY" else "START AUTO-SYNC",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // SENDER BUTTON
-            OutlinedButton(
-                onClick = {
-                    if (myRequests.isNotEmpty()) {
-                        // Pass the function to update text
-                        client.sendRequests(myRequests) { newStatus ->
-                            statusText = newStatus
-                        }
-                    } else {
-                        statusText = "You have no requests to send! Create one first."
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MedicalRed)
+            // Info Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
             ) {
-                Icon(Icons.Default.Share, null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Send My Requests")
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Background Service", fontWeight = FontWeight.Bold, color = Color(0xFF1565C0))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "This relay will now keep running in the background even if you navigate to other screens.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF1565C0)
+                    )
+                }
             }
         }
     }
