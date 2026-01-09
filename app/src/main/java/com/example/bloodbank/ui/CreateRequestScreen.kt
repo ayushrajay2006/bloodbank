@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,6 +47,7 @@ fun CreateRequestScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
+    // State Variables
     val bloodGroups = listOf("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-")
     var selectedBloodGroup by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
@@ -54,6 +56,7 @@ fun CreateRequestScreen(onBack: () -> Unit) {
     var contactNumber by remember { mutableStateOf("") }
     var isLocating by remember { mutableStateOf(false) }
 
+    // Helper: Get Address from Coordinates
     fun getAddressFromLocation(lat: Double, lon: Double) {
         scope.launch(Dispatchers.IO) {
             try {
@@ -62,10 +65,8 @@ fun CreateRequestScreen(onBack: () -> Unit) {
                 val addresses = geocoder.getFromLocation(lat, lon, 1)
                 if (!addresses.isNullOrEmpty()) {
                     val address = addresses[0]
-
-                    // 👇 FIXED: This gets the FULL exact address (Street, House No, etc.)
+                    // Uses the full address line for better precision
                     val fullAddress = address.getAddressLine(0) ?: "Lat: $lat, Lon: $lon"
-
                     withContext(Dispatchers.Main) {
                         locationText = fullAddress
                         isLocating = false
@@ -92,23 +93,32 @@ fun CreateRequestScreen(onBack: () -> Unit) {
         }
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(OffWhite)
-            .verticalScroll(rememberScrollState())
-    ) {
-        TopAppBar(
-            title = { Text("New Emergency Request", fontWeight = FontWeight.Bold) },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = OffWhite)
-        )
-
-        Column(modifier = Modifier.padding(24.dp)) {
+    // 👇 SCAFFOLD: Holds the Top Bar in place
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("New Emergency Request", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Color.Black
+                )
+            )
+        },
+        containerColor = OffWhite
+    ) { padding ->
+        // Content inside the Scaffold
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding) // Crucial: Respects the Top Bar space
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp)
+        ) {
             Text("Patient Details", style = MaterialTheme.typography.labelLarge, color = MedicalRed)
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -234,19 +244,14 @@ fun CreateRequestScreen(onBack: () -> Unit) {
 private fun fetchLocation(client: FusedLocationProviderClient, onResult: (Location?) -> Unit) {
     try {
         client.lastLocation.addOnSuccessListener { location: Location? ->
-            if (location != null) {
-                onResult(location)
-            } else {
+            if (location != null) onResult(location)
+            else {
                 val request = com.google.android.gms.location.CurrentLocationRequest.Builder()
                     .setPriority(Priority.PRIORITY_HIGH_ACCURACY).build()
                 client.getCurrentLocation(request, null)
                     .addOnSuccessListener { loc: Location? -> onResult(loc) }
                     .addOnFailureListener { onResult(null) }
             }
-        }.addOnFailureListener {
-            onResult(null)
-        }
-    } catch (e: SecurityException) {
-        onResult(null)
-    }
+        }.addOnFailureListener { onResult(null) }
+    } catch (e: SecurityException) { onResult(null) }
 }

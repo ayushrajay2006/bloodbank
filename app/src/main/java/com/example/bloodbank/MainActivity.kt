@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
-import com.example.bloodbank.map.BloodBankMapScreen // Import the Map Screen
+import com.example.bloodbank.map.BloodBankMapScreen
 import com.example.bloodbank.ui.*
 import com.example.bloodbank.ui.theme.BloodBankTheme
 import org.osmdroid.config.Configuration
@@ -44,19 +44,25 @@ class MainActivity : ComponentActivity() {
                         onBack = { screen = "main" }
                     )
 
+                    "dengue" -> DengueAssistantScreen(
+                        onBack = { screen = "main" },
+                        onFindHelp = { screen = "banks" }
+                    )
+
+                    // 👇 NEW BLUETOOTH SCREEN
+                    "bluetooth" -> BluetoothScreen(
+                        onBack = { screen = "main" }
+                    )
+
                     "notify" -> {
-                        // 👇 FIX: Fetch banks and show Map Screen directly
                         val db = CoreDatabase.getDatabase(this)
                         val banks by db.bloodBankDao().getAllBloodBanks().collectAsState(initial = emptyList())
 
-                        // We can also fetch the request if we want to show its location specifically,
-                        // but for "Notify", showing the map of banks is the goal.
-
                         BloodBankMapScreen(
                             context = this,
-                            userLocation = null, // Or pass real location if available
+                            userLocation = null,
                             bloodBanks = banks,
-                            onBack = { screen = "requests" } // Return to requests list
+                            onBack = { screen = "requests" }
                         )
                     }
 
@@ -64,7 +70,9 @@ class MainActivity : ComponentActivity() {
                         onCreateRequest = { screen = "create" },
                         onViewBloodBanks = { screen = "banks" },
                         onViewRequests = { screen = "requests" },
-                        onViewDonors = { screen = "donors" }
+                        onViewDonors = { screen = "donors" },
+                        onDengueClick = { screen = "dengue" },
+                        onBluetoothClick = { screen = "bluetooth" } // 👈 WIRED UP
                     )
                 }
             }
