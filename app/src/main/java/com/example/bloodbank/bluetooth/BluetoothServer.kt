@@ -9,6 +9,8 @@ import com.example.bloodbank.CoreDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -31,36 +33,44 @@ class BluetoothServer(
             var serverSocket: BluetoothServerSocket? = null
 
             try {
-                // Open the "Door" once
                 serverSocket = adapter.listenUsingRfcommWithServiceRecord("EmergencyRelay", APP_UUID)
                 withContext(Dispatchers.Main) { onStatus("Auto-Relay Active: Waiting for connection...") }
 
-                // Keep accepting connections forever
                 while (isActive && shouldLoop) {
                     try {
-                        // This blocks until a phone connects
                         val socket: BluetoothSocket = serverSocket.accept()
 
-                        // We got a connection!
-                        Log.d("BluetoothServer", "Incoming connection accepted")
-
-                        // Handle the data
+                        // ... (Connection Handling logic is same as before) ...
                         val reader = BufferedReader(InputStreamReader(socket.inputStream))
                         val json = reader.readLine()
 
                         if (!json.isNullOrEmpty()) {
-                            val requests = deserializeRequests(json.trim())
-                            requests.forEach { req -> database.emergencyRequestDao().insert(req) }
+                            val receivedRequests = deserializeRequests(json.trim())
+                            val existingRequests = database.emergencyRequestDao().getAllRequests().first()
+                            var newCount = 0
 
-                            withContext(Dispatchers.Main) {
-                                onStatus("Received ${requests.size} requests! Still listening...")
+                            receivedRequests.forEach { incoming ->
+                                val isDuplicate = existingRequests.any { existing ->
+                                    existing.timestamp == incoming.timestamp &&
+                                            existing.contactNumber == incoming.contactNumber
+                                }
+                                if (!isDuplicate) {
+                                    database.emergencyRequestDao().insert(incoming)
+                                    newCount++
+                                }
+                            }
+
+                            if (newCount > 0) {
+                                withContext(Dispatchers.Main) { onStatus("Synced $newCount new requests!") }
                             }
                         }
-
                         socket.close()
 
                     } catch (e: Exception) {
                         Log.e("BluetoothServer", "Connection Error", e)
+                        // 👇 NEW SAFETY DELAY:
+                        // If accept() fails, wait 1s before retrying to prevent CPU overheating
+                        delay(1000)
                     }
                 }
             } catch (e: Exception) {

@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.first
 
 object BluetoothRelayManager {
 
-    // These states survive screen changes
     var isRelayActive by mutableStateOf(false)
         private set
 
@@ -25,7 +24,7 @@ object BluetoothRelayManager {
 
     @SuppressLint("MissingPermission")
     fun start(context: Context) {
-        if (isRelayActive) return // Already running
+        if (isRelayActive) return
 
         val adapter = BluetoothAdapter.getDefaultAdapter()
         val db = CoreDatabase.getDatabase(context)
@@ -48,7 +47,7 @@ object BluetoothRelayManager {
                 val myRequests = db.emergencyRequestDao().getAllRequests().first()
 
                 if (myRequests.isNotEmpty()) {
-                    delay(5000) // Wait 5s before first broadcast
+                    // Send to all devices
                     client?.sendToAllPairedDevices(myRequests) { status ->
                         // Only update log if significant
                         if (status.contains("Synced") || status.contains("Error")) {
@@ -57,8 +56,9 @@ object BluetoothRelayManager {
                     }
                 }
 
-                // Wait 30 seconds before next broadcast cycle to save battery
-                delay(30000)
+                // 👇 CHANGED: Wait 2 MINUTES (120,000ms) instead of 30s
+                // This saves massive battery and stops the loop spam
+                delay(15000)
             }
         }
     }

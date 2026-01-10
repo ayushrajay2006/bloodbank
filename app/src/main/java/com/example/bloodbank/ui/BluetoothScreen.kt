@@ -1,5 +1,11 @@
 package com.example.bloodbank.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -18,7 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.bloodbank.bluetooth.BluetoothRelayManager // 👈 Import the Manager
+import androidx.core.content.ContextCompat
+import com.example.bloodbank.bluetooth.BluetoothRelayManager
 import com.example.bloodbank.ui.theme.MedicalRed
 import com.example.bloodbank.ui.theme.OffWhite
 
@@ -30,6 +37,35 @@ fun BluetoothScreen(onBack: () -> Unit) {
     // Read directly from the Singleton Manager
     val isRelayActive = BluetoothRelayManager.isRelayActive
     val statusLog = BluetoothRelayManager.statusLog
+
+    // Define the permissions we need based on Android Version
+    val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        // Android 12+ needs these specific new permissions
+        arrayOf(
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_ADVERTISE
+        )
+    } else {
+        // Android 11 and below needs Location to find devices
+        arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    }
+
+    // Permission Launcher: Handles the user's "Allow" or "Deny" choice
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.entries.all { it.value }
+        if (allGranted) {
+            // Success! Start the relay
+            BluetoothRelayManager.start(context)
+        } else {
+            Toast.makeText(context, "Bluetooth permissions are required for Relay Mode", Toast.LENGTH_LONG).show()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -83,18 +119,28 @@ fun BluetoothScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.Gray,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.height(40.dp)
+                modifier = Modifier.height(60.dp)
             )
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // TOGGLE BUTTON
+            // UPDATED BUTTON WITH PERMISSION CHECK
             Button(
                 onClick = {
                     if (isRelayActive) {
                         BluetoothRelayManager.stop()
                     } else {
-                        BluetoothRelayManager.start(context)
+                        // Check if we already have permissions
+                        val hasPermissions = requiredPermissions.all {
+                            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+                        }
+
+                        if (hasPermissions) {
+                            BluetoothRelayManager.start(context)
+                        } else {
+                            // If not, ASK for them now
+                            permissionLauncher.launch(requiredPermissions)
+                        }
                     }
                 },
                 modifier = Modifier

@@ -49,7 +49,6 @@ class MainActivity : ComponentActivity() {
                         onFindHelp = { screen = "banks" }
                     )
 
-                    // 👇 NEW BLUETOOTH SCREEN
                     "bluetooth" -> BluetoothScreen(
                         onBack = { screen = "main" }
                     )
@@ -72,7 +71,7 @@ class MainActivity : ComponentActivity() {
                         onViewRequests = { screen = "requests" },
                         onViewDonors = { screen = "donors" },
                         onDengueClick = { screen = "dengue" },
-                        onBluetoothClick = { screen = "bluetooth" } // 👈 WIRED UP
+                        onBluetoothClick = { screen = "bluetooth" }
                     )
                 }
             }
